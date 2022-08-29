@@ -11,8 +11,8 @@ const main = async () => {
     console.log(middleTime - startTime);
 
     const result = await findOptimalPath(
-        '0xd41fdb03ba84762dd66a0af1a6c8540ff1ba5dfb',
-        '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+        '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c',
+        '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82',
         10,
         pools
     )
