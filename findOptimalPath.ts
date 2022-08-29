@@ -1,8 +1,65 @@
 import BigNumber from 'bignumber.js';
 import { estimateOut, findBestPool, findPoolsByOneTokenAndWhiteBlacklist } from "./utils";
 import { CENTRAL_TOKENS, BNB_ATTACHED_TOKENS, BUSD_ATTACHED_TOKENS, WHOLE_TOKENS, BNB, BUSD, CENTRAL_TOKENS_GRAPH, TOP_30_POOLS, viewerContract, PANCAKE_SWAP_ADDRESS } from "./statics";
-import { OptimalPath, PoolDto } from "dtos";
+import { OptimalPath, pathWithInfo, PoolDto } from "dtos";
 import { fetchNowPools } from "./fetchPoolInfos";
+
+export const addPath = (
+  nowPath: string[],
+  nowPathProtocols: string[],
+  nowPools: PoolDto[],
+  amountIn: BigNumber,
+  pathsWithAmountOut: pathWithInfo[],
+  to: string,
+  pools: PoolDto[],
+) => {
+  const nowFrom = nowPath[nowPath.length - 1];
+  if (nowFrom === to) {
+    pathsWithAmountOut.push({ path: nowPath, protocols: nowPathProtocols, pools: nowPools, amountOut: amountIn });
+    return;
+  }
+
+  const candidatePools = findPoolsByOneTokenAndWhiteBlacklist(pools, nowFrom, CENTRAL_TOKENS, nowPath);
+
+  candidatePools.forEach((pool) => {
+    // forEach 돌면서 같은 pathNow에 add되는 현상 피하기 위해 copy
+    const nowPathForExtend = nowPath.slice();
+    const nowPathProtocolsExtend = nowPathProtocols.slice()
+    const nowPoolsExtend = nowPools.slice()
+
+    const swappedToken = pool["token0"] === nowFrom ? pool["token1"] : pool["token0"];
+    const amountOut = estimateOut(pool, nowFrom, amountIn);
+
+
+    nowPathForExtend.push(swappedToken);
+    nowPathProtocolsExtend.push(pool["protocol"]);
+    const nowPool = {...pool};
+    nowPool['exchangeRate'] = amountOut.div(amountIn).toNumber();
+    nowPoolsExtend.push(nowPool);
+
+    addPath(nowPathForExtend, nowPathProtocolsExtend, nowPoolsExtend, amountOut, pathsWithAmountOut, to, pools);
+  })
+};
+
+export const findOptimalPathWithinCentralTokens = (from: string, to: string, amountIn: BigNumber, pools: PoolDto[])
+  : any => {
+  let pathsWithAmountOut: pathWithInfo[] = [];
+  addPath([from], [], [], amountIn, pathsWithAmountOut, to, pools)
+
+  let maxPath: string[] = [];
+  let maxAmountOut = new BigNumber(0);
+  let maxProtocols: string[] = [];
+  let maxPools: PoolDto[] = [];
+  pathsWithAmountOut.forEach((pathWithAmountOut) => {
+    if (pathWithAmountOut.amountOut > maxAmountOut) {
+      maxPath = pathWithAmountOut.path;
+      maxAmountOut = pathWithAmountOut.amountOut;
+      maxProtocols = pathWithAmountOut.protocols;
+      maxPools = pathWithAmountOut.pools;
+    }
+  });
+  return maxPath;
+}
 
 export const findOptimalPath = async (from: string, to: string, amountInRaw: number, pools: PoolDto[]): Promise<any> => {
   from = from.toLowerCase();
@@ -114,7 +171,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   addPath(path, protocols, pathPools, amountIn);
 
   let maxPath: string[] = [];
-  let maxAmountOut = new BigNumber(0);
+  let maxAmountOut = BigNumber(0);
   let maxProtocols: string[] = [];
   let maxPools: PoolDto[] = [];
   pathsWithAmountOut.forEach((pathWithAmountOut) => {
@@ -158,29 +215,32 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
 };
 
 const main = async () => {
-  let startTime, endTime, finalTime;
+  let startTime, middleTime, endTime;
   startTime = new Date();
   const pools = await fetchNowPools();
   // console.log(pools);
-  endTime = new Date();
-  console.log(endTime - startTime);
 
-  const result = await findOptimalPath(
-    '0x7083609fce4d1d8dc0c979aab8c869ea2c873402',
+  middleTime = new Date();
+  console.log(middleTime - startTime);
+
+  // const result = await findOptimalPath(
+  //     '0xd41fdb03ba84762dd66a0af1a6c8540ff1ba5dfb',
+  //     '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+  //     10,
+  //     pools
+  // )
+  // console.log(result);
+
+  const result = await findOptimalPathWithinCentralTokens(
+    '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82',
     '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-    10,
+    BigNumber(10),
     pools
   )
   console.log(result);
 
-  // finalTime = new Date();
-  // console.log(finalTime - endTime);
-  // const pool = await findBestPool(
-  //   pools,
-  //   '0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd',
-  //   '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c',
-  // )
-  // console.log(pool);
+  endTime = new Date();
+  console.log(endTime - startTime);
 };
-main();
 
+main();

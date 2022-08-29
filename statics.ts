@@ -102,10 +102,9 @@ CENTRAL_TOKENS_GRAPH_RAW[USDC] = [ETH, USDT, BUSD];
 export const CENTRAL_TOKENS_GRAPH = CENTRAL_TOKENS_GRAPH_RAW;
 
 export const JSON_RPC_ENDPOINT = "https://bsc-dataseed.binance.org/";
-export const PANCAKE_VIEWER_CONTRACT_ADDRESS =
-  "0x67a4412f1a3c64e32c85f81a8e19648d8e35e690";
+export const PANCAKE_VIEWER_CONTRACT_ADDRESS = "0x67a4412f1a3c64e32c85f81a8e19648d8e35e690";
 
-  let swapFeesRaw = {}
+let swapFeesRaw = {}
 
 export const PANCAKE_SWAP_ADDRESS = "0x10ed43c718714eb63d5aa57b78b54704e256024e";
 export const pancakeFactory = "0xBCfCcbde45cE874adCB698cC183deBcF17952812";

@@ -14,10 +14,9 @@ export const estimateOut = (pool: PoolDto, from: string, amountIn: BigNumber): B
   let toTokenReserve = (from == token0) ? token1Reserve : token0Reserve;
 
   const adjustedAmountIn = amountIn.multipliedBy(1 - swapFees[pool["protocol"]]);
-
   const exchangeRate = toTokenReserve.div(fromTokenReserve.plus(adjustedAmountIn));
-  const beforeExchangeRate =  toTokenReserve.div(fromTokenReserve);
 
+  // const beforeExchangeRate =  toTokenReserve.div(fromTokenReserve);
   // if (exchangeRate < beforeExchangeRate.multipliedBy(0.95)){
   //   console.log(pool);
   //   console.log('too large slippage! low liquidity');

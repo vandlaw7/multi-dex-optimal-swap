@@ -19,3 +19,10 @@ export interface OptimalPath {
     protocols: string[];
     pools: PoolDto[];
 }
+
+export interface pathWithInfo {
+    path: string[];
+    protocols: string[];
+    pools: PoolDto[];
+    amountOut: BigNumber;
+}
