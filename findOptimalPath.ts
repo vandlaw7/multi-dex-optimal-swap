@@ -1,30 +1,10 @@
-import { ethers } from "ethers";
 import BigNumber from 'bignumber.js';
-import { PANCAKE_VIEWER_ABI } from "./abis";
-import { estimateOut, findPool } from "./utils";
-import { CENTRAL_TOKENS, BNB_ATTACHED_TOKENS, BUSD_ATTACHED_TOKENS, WHOLE_TOKENS, BNB, BUSD, CENTRAL_TOKENS_GRAPH, TOP_30_POOLS, JSON_RPC_ENDPOINT, PANCAKE_VIEWER_CONTRACT_ADDRESS, PANCAKE_SWAP_ADDRESS } from "./statics";
+import { estimateOut, findBestPool, findPoolsByOneTokenAndWhiteBlacklist } from "./utils";
+import { CENTRAL_TOKENS, BNB_ATTACHED_TOKENS, BUSD_ATTACHED_TOKENS, WHOLE_TOKENS, BNB, BUSD, CENTRAL_TOKENS_GRAPH, TOP_30_POOLS, viewerContract, PANCAKE_SWAP_ADDRESS } from "./statics";
 import { OptimalPath, PoolDto } from "dtos";
+import { fetchNowPools } from "./fetchPoolInfos";
 
-export const fetchNowPools = async () => {
-  const provider = new ethers.providers.JsonRpcProvider(JSON_RPC_ENDPOINT);
-  const viewerContract = new ethers.Contract(
-    PANCAKE_VIEWER_CONTRACT_ADDRESS,
-    PANCAKE_VIEWER_ABI,
-    provider
-  );
-  const poolsRaw: PoolDto[]  = await viewerContract.poolInfosByList(TOP_30_POOLS);
-
-  const pools = poolsRaw.map((pool => {
-    let lowerPool = { ...pool }; // copy
-    lowerPool["token0"] = pool["token0"].toLowerCase();
-    lowerPool["token1"] = pool["token1"].toLowerCase();
-    return lowerPool;
-  }));
-
-  return pools;
-};
-
-export const findOptimalPath = async (from: string, to: string, amountInRaw: number, pools: PoolDto[]): Promise<OptimalPath> => {
+export const findOptimalPath = async (from: string, to: string, amountInRaw: number, pools: PoolDto[]): Promise<any> => {
   from = from.toLowerCase();
   to = to.toLowerCase();
 
@@ -33,27 +13,40 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
     return{
       path: [],
       amountOut: 0,
-      protocols: []
+      protocols: [],
+      pools: []
     }
   }
 
   let amountIn = BigNumber(amountInRaw);
-
   let path = [from];
+  let protocols = [];
+  let pathPools = [];
+
+  // const real_to = to;
 
   // ------------------------------------------------------------------
   // 1) BNB 부속이면 BNB로, BUSD 부속이면 BUSD로 스왚
   // ------------------------------------------------------------------
 
   if (BNB_ATTACHED_TOKENS.includes(from)) {
-    const bnbPool = findPool(pools, from, BNB);
+    const bnbPool = findBestPool(pools, from, BNB);
+    if (!bnbPool){
+      return {
+        'aaa': 'bbb'
+      }
+    }
     amountIn = estimateOut(bnbPool, from, amountIn);
     path.push(BNB);
+    protocols.push(bnbPool['protocol']);
+    pathPools.push(bnbPool);
     from = BNB;
   } else if (BUSD_ATTACHED_TOKENS.includes(from)) {
-    const busdPool = findPool(pools, from, BUSD);
+    const busdPool = findBestPool(pools, from, BUSD);
     amountIn = estimateOut(busdPool, from, amountIn);
     path.push(BUSD);
+    protocols.push(busdPool['protocol']);
+    pathPools.push(busdPool);
     from = BUSD;
   }
 
@@ -68,8 +61,10 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
     return {
       path,
       amountOut: amountIn.toNumber(),
-      protocols: new Array(path.length - 1).fill(PANCAKE_SWAP_ADDRESS),
-    };  }
+      protocols,
+      pools: pathPools
+    };
+  }
 
   // ------------------------------------------------------------------
   // 3) 중심 토큰들 7개 사이에서 최적 경로를 탐색
@@ -88,38 +83,50 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   // (3)to token에 도달하면 함수 종료.
   // 이렇게 찾은 to token 산출량 중에서 가장 산출량이 큰 경로를 채택.
 
-  let pathsWithAmountOut: {path: string[], amountOut: BigNumber}[] = [];
+  let pathsWithAmountOut: {path: string[], protocols: string[], pools: PoolDto[], amountOut: BigNumber}[] = [];
 
-  const addPath = (nowPath: string[], amountIn: BigNumber) => {
+  const addPath = (nowPath: string[], nowPathProtocols: string[], nowPools: PoolDto[], amountIn: BigNumber) => {
     const nowFrom = nowPath[nowPath.length - 1];
     if (nowFrom === to) {
-      pathsWithAmountOut.push({ path: nowPath, amountOut: amountIn });
+      pathsWithAmountOut.push({ path: nowPath, protocols: nowPathProtocols, pools: nowPools, amountOut: amountIn });
       return;
     }
-    const candidates: string[] = CENTRAL_TOKENS_GRAPH[nowFrom];
-    const filteredCandidates = candidates.filter(
-      // 지금까지 거쳤던 토큰 경로는 다시 안 감. 다시 가서 이득이 되면 아비트리지가 된다는 뜻인데 그런 경우는 없다고 가정함.
-      (candidate) => !nowPath.includes(candidate)
-    );
-    filteredCandidates.forEach((candidate) => {
+
+    const candidatePools = findPoolsByOneTokenAndWhiteBlacklist(pools, nowFrom, CENTRAL_TOKENS, nowPath);
+
+    candidatePools.forEach((pool) => {
       // forEach 돌면서 같은 pathNow에 add되는 현상 피하기 위해 copy
       const nowPathForExtend = nowPath.slice();
-      const pool = findPool(pools, nowFrom, candidate);
+      const nowPathProtocolsExtend = nowPathProtocols.slice()
+      const nowPoolsExtend = nowPools.slice()
+
+      const swappedToken = pool["token0"] === nowFrom ? pool["token1"] : pool["token0"];
       const amountOut = estimateOut(pool, nowFrom, amountIn);
-      nowPathForExtend.push(candidate);
-      addPath(nowPathForExtend, amountOut);
-    });
+
+
+      nowPathForExtend.push(swappedToken);
+      nowPathProtocolsExtend.push(pool["protocol"]);
+      const nowPool = {...pool};
+      nowPool['exchangeRate'] = amountOut.div(amountIn).toNumber();
+      nowPoolsExtend.push(nowPool);
+
+      addPath(nowPathForExtend, nowPathProtocolsExtend, nowPoolsExtend, amountOut);
+    })
   };
   // central token의 경로만 maxPath에 기록하고, 전체경로는 나중에 concat해준다.
-  const nowPath = [path[path.length - 1]];
-  addPath(nowPath, amountIn);
+  // const nowPath = [path[path.length - 1]];
+  addPath(path, protocols, pathPools, amountIn);
 
   let maxPath: string[] = [];
   let maxAmountOut = BigNumber(0);
+  let maxProtocols: string[] = [];
+  let maxPools: PoolDto[] = [];
   pathsWithAmountOut.forEach((pathWithAmountOut) => {
     if (pathWithAmountOut.amountOut > maxAmountOut) {
       maxPath = pathWithAmountOut.path;
       maxAmountOut = pathWithAmountOut.amountOut;
+      maxProtocols = pathWithAmountOut.protocols;
+      maxPools = pathWithAmountOut.pools;
     }
   });
 
@@ -131,30 +138,51 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   // ------------------------------------------------------------------
   if (!CENTRAL_TOKENS.includes(real_to)) {
     const nowFrom = path[path.length - 1];
-    const pool = findPool(pools, nowFrom, real_to);
+    const pool = findBestPool(pools, nowFrom, real_to);
     maxAmountOut = estimateOut(pool, nowFrom, maxAmountOut);
-    path.push(real_to);
+    maxPath.push(real_to);
+    maxProtocols.push(pool['protocol']);
+    maxPools.push(pool);
   }
 
-  // console.log('final path', path);
-  // console.log('maxAmountOut', String(maxAmountOut))
-  // console.log('elapsed time: ', (Date.now() - startTime) / 1000);
+  // console.log(pathsWithAmountOut);
+
   return {
-    path,
+    path: maxPath,
     amountOut: maxAmountOut.toNumber(),
-    protocols: new Array(path.length - 1).fill(PANCAKE_SWAP_ADDRESS),
+    protocols: maxProtocols,
+    pools: maxPools.map((pool) => {
+      const poolForResponse : any = {...pool};
+      poolForResponse['token0Reserve'] = pool['token0Reserve'].toNumber();
+      poolForResponse['token1Reserve'] = pool['token1Reserve'].toNumber();
+      return poolForResponse;
+    }),
   };
 };
 
-// const setImmediate = (fn) => {
-//   setTimeout(fn, 0);
-// };
-
 const main = async () => {
+  let startTime, endTime, finalTime;
+  startTime = new Date();
   const pools = await fetchNowPools();
+  endTime = new Date();
+  console.log(endTime - startTime);
   // console.log(pools);
-  const result = await findOptimalPath('0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c', '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3', 10, pools )
+  const result = await findOptimalPath(
+    '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82',
+    '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3',
+    10,
+    pools
+  )
   console.log(result);
+
+  finalTime = new Date();
+  console.log(finalTime - endTime);
+  // const pool = await findBestPool(
+  //   pools,
+  //   '0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd',
+  //   '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c',
+  // )
+  // console.log(pool);
 };
 main();
 
