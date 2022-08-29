@@ -20,7 +20,6 @@ export const tokenToBinanceSymbol = {
   "0x2170ed0880ac9a755fd29b2688956bd959f933f8": "ETH",
   "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c": "BTC",
   "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": "USDC",
-  "0x3203c9e46ca618c8c1ce5dc67e7e9d75f5da2377": "MBOX",
   "0x7083609fce4d1d8dc0c979aab8c869ea2c873402": "DOT",
   "0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe": "XRP",
   "0xd41fdb03ba84762dd66a0af1a6c8540ff1ba5dfb": "SFP",
@@ -32,14 +31,11 @@ export const tokenToBinanceSymbol = {
   "0xbf5140a22578168fd562dccf235e5d43a02ce9b1": "UNI",
   "0x14016e85a25aeb13065688cafb43044c2ef86784": "TUSD",
   "0x85eac5ac2f758618dfa09bdbe0cf174e7d574d5b": "TRX",
-  "0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3": "DAI",
   "0x8595f9da7b868b1822194faed312235e43007b49": "BTT",
-  "0x8f0528ce5ef7b51152a59745befdd91d97091d2f": "ALPACA",
   "0xaef0d72a118ce24fee3cd1d43d383897d05b4e99": "WIN",
 };
 
 export const BNB_ATTACHED_TOKENS = [
-  "0x3203c9e46ca618c8c1ce5dc67e7e9d75f5da2377",
   "0x7083609fce4d1d8dc0c979aab8c869ea2c873402",
   "0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe",
   "0xd41fdb03ba84762dd66a0af1a6c8540ff1ba5dfb",
@@ -54,9 +50,7 @@ export const BNB_ATTACHED_TOKENS = [
 export const BUSD_ATTACHED_TOKENS = [
   "0x14016e85a25aeb13065688cafb43044c2ef86784",
   "0x85eac5ac2f758618dfa09bdbe0cf174e7d574d5b",
-  "0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3",
   "0x8595f9da7b868b1822194faed312235e43007b49",
-  "0x8f0528ce5ef7b51152a59745befdd91d97091d2f",
   "0xaef0d72a118ce24fee3cd1d43d383897d05b4e99",
 ];
 
@@ -111,22 +105,18 @@ export const JSON_RPC_ENDPOINT = "https://bsc-dataseed.binance.org/";
 export const PANCAKE_VIEWER_CONTRACT_ADDRESS =
   "0x67a4412f1a3c64e32c85f81a8e19648d8e35e690";
 
-export const PANCAKE_SWAP_ADDRESS = "0x05ff2b0db69458a0750badebc4f9e13add608c7f";
-export const MDEX_SWAP_ADDRESS = "0x62c1a0d92b09d0912f7bb9c96c5ecdc7f2b87059"
-export const BAKERY_SWAP_ADDRESS = "0x116aae16a3a7044afe7063c6f870b119000b5abe"
+  let swapFeesRaw = {}
 
+export const PANCAKE_SWAP_ADDRESS = "0x10ed43c718714eb63d5aa57b78b54704e256024e";
 export const pancakeFactory = "0xBCfCcbde45cE874adCB698cC183deBcF17952812";
-export const mdexFactory = "0x3CD1C46068dAEa5Ebb0d3f55F6915B10648062B8";
-export const bakeryFactory = "0x01bF7C66c6BD861915CdaaE475042d3c4BaE16A7";
-
 export const pancakePoolCount = 120;
-export const mdexPoolCount = 500;
-export const bakeryPoolCount = 70;
-
-let swapFeesRaw = {}
 swapFeesRaw[PANCAKE_SWAP_ADDRESS] = 0.0025;
-swapFeesRaw[MDEX_SWAP_ADDRESS] = 0.003;
+
+export const BAKERY_SWAP_ADDRESS = "0x116aae16a3a7044afe7063c6f870b119000b5abe"
+export const bakeryFactory = "0x01bF7C66c6BD861915CdaaE475042d3c4BaE16A7";
+export const bakeryPoolCount = 70;
 swapFeesRaw[BAKERY_SWAP_ADDRESS] = 0.003;
+
 export const swapFees = swapFeesRaw;
 
 const provider = new ethers.providers.JsonRpcProvider(JSON_RPC_ENDPOINT);

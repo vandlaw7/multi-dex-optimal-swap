@@ -5,7 +5,7 @@ import { swapFees } from './statics';
 
 export const estimateOut = (pool: PoolDto, from: string, amountIn: BigNumber): BigNumber => {
   if (amountIn.isZero()) {
-		return BigNumber(0);
+		return new BigNumber(0);
 	};
 
   const {token0, token0Reserve, token1Reserve} = pool;
@@ -14,7 +14,16 @@ export const estimateOut = (pool: PoolDto, from: string, amountIn: BigNumber): B
   let toTokenReserve = (from == token0) ? token1Reserve : token0Reserve;
 
   const adjustedAmountIn = amountIn.multipliedBy(1 - swapFees[pool["protocol"]]);
+
   const exchangeRate = toTokenReserve.div(fromTokenReserve.plus(adjustedAmountIn));
+  const beforeExchangeRate =  toTokenReserve.div(fromTokenReserve);
+
+  // if (exchangeRate < beforeExchangeRate.multipliedBy(0.95)){
+  //   console.log(pool);
+  //   console.log('too large slippage! low liquidity');
+  //   console.log(exchangeRate.div(beforeExchangeRate).toNumber());
+	// 	return new BigNumber(0);
+  // }
 
   return adjustedAmountIn.multipliedBy(exchangeRate);
 }
@@ -27,8 +36,8 @@ export const findBestPool = (pools: PoolDto[], token0: string, token1: string): 
       pool['exchangeRate'] = estimateOut(pool, token0, BigNumber('1')).toNumber();
       return pool;
     })
-    .sort((pool1, pool2) => pool1['exchangeRate'] - pool2['exchangeRate'])
-  if (!poolsFiltered) {
+    .sort((pool1, pool2) => pool2['exchangeRate'] - pool1['exchangeRate'])
+  if (poolsFiltered.length === 0) {
     throw Error
   }
   // console.log(poolsFiltered);

@@ -31,11 +31,6 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
 
   if (BNB_ATTACHED_TOKENS.includes(from)) {
     const bnbPool = findBestPool(pools, from, BNB);
-    if (!bnbPool){
-      return {
-        'aaa': 'bbb'
-      }
-    }
     amountIn = estimateOut(bnbPool, from, amountIn);
     path.push(BNB);
     protocols.push(bnbPool['protocol']);
@@ -76,6 +71,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   } else if (BUSD_ATTACHED_TOKENS.includes(real_to)) {
     to = BUSD;
   }
+
 
   // 재귀함수를 돌려서,
   // (1)경로 상의 이전 토큰이 들어있고,
@@ -118,7 +114,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   addPath(path, protocols, pathPools, amountIn);
 
   let maxPath: string[] = [];
-  let maxAmountOut = BigNumber(0);
+  let maxAmountOut = new BigNumber(0);
   let maxProtocols: string[] = [];
   let maxPools: PoolDto[] = [];
   pathsWithAmountOut.forEach((pathWithAmountOut) => {
@@ -137,9 +133,10 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   // 4) 최종 path 반환
   // ------------------------------------------------------------------
   if (!CENTRAL_TOKENS.includes(real_to)) {
-    const nowFrom = path[path.length - 1];
-    const pool = findBestPool(pools, nowFrom, real_to);
-    maxAmountOut = estimateOut(pool, nowFrom, maxAmountOut);
+    console.log('to: ', to);
+    console.log('real_to: ', real_to);
+    const pool = findBestPool(pools, to, real_to);
+    maxAmountOut = estimateOut(pool, to, maxAmountOut);
     maxPath.push(real_to);
     maxProtocols.push(pool['protocol']);
     maxPools.push(pool);
@@ -164,19 +161,20 @@ const main = async () => {
   let startTime, endTime, finalTime;
   startTime = new Date();
   const pools = await fetchNowPools();
+  // console.log(pools);
   endTime = new Date();
   console.log(endTime - startTime);
-  // console.log(pools);
+
   const result = await findOptimalPath(
-    '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82',
-    '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3',
+    '0x7083609fce4d1d8dc0c979aab8c869ea2c873402',
+    '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
     10,
     pools
   )
   console.log(result);
 
-  finalTime = new Date();
-  console.log(finalTime - endTime);
+  // finalTime = new Date();
+  // console.log(finalTime - endTime);
   // const pool = await findBestPool(
   //   pools,
   //   '0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd',
