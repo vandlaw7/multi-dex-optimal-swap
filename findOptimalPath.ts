@@ -4,63 +4,6 @@ import { CENTRAL_TOKENS, BNB_ATTACHED_TOKENS, BUSD_ATTACHED_TOKENS, WHOLE_TOKENS
 import { OptimalPath, pathWithInfo, PoolDto } from "dtos";
 import { fetchNowPools } from "./fetchPoolInfos";
 
-export const addPath = (
-  nowPath: string[],
-  nowPathProtocols: string[],
-  nowPools: PoolDto[],
-  amountIn: BigNumber,
-  pathsWithAmountOut: pathWithInfo[],
-  to: string,
-  pools: PoolDto[],
-) => {
-  const nowFrom = nowPath[nowPath.length - 1];
-  if (nowFrom === to) {
-    pathsWithAmountOut.push({ path: nowPath, protocols: nowPathProtocols, pools: nowPools, amountOut: amountIn });
-    return;
-  }
-
-  const candidatePools = findPoolsByOneTokenAndWhiteBlacklist(pools, nowFrom, CENTRAL_TOKENS, nowPath);
-
-  candidatePools.forEach((pool) => {
-    // forEach 돌면서 같은 pathNow에 add되는 현상 피하기 위해 copy
-    const nowPathForExtend = nowPath.slice();
-    const nowPathProtocolsExtend = nowPathProtocols.slice()
-    const nowPoolsExtend = nowPools.slice()
-
-    const swappedToken = pool["token0"] === nowFrom ? pool["token1"] : pool["token0"];
-    const amountOut = estimateOut(pool, nowFrom, amountIn);
-
-
-    nowPathForExtend.push(swappedToken);
-    nowPathProtocolsExtend.push(pool["protocol"]);
-    const nowPool = {...pool};
-    nowPool['exchangeRate'] = amountOut.div(amountIn).toNumber();
-    nowPoolsExtend.push(nowPool);
-
-    addPath(nowPathForExtend, nowPathProtocolsExtend, nowPoolsExtend, amountOut, pathsWithAmountOut, to, pools);
-  })
-};
-
-export const findOptimalPathWithinCentralTokens = (from: string, to: string, amountIn: BigNumber, pools: PoolDto[])
-  : any => {
-  let pathsWithAmountOut: pathWithInfo[] = [];
-  addPath([from], [], [], amountIn, pathsWithAmountOut, to, pools)
-
-  let maxPath: string[] = [];
-  let maxAmountOut = new BigNumber(0);
-  let maxProtocols: string[] = [];
-  let maxPools: PoolDto[] = [];
-  pathsWithAmountOut.forEach((pathWithAmountOut) => {
-    if (pathWithAmountOut.amountOut > maxAmountOut) {
-      maxPath = pathWithAmountOut.path;
-      maxAmountOut = pathWithAmountOut.amountOut;
-      maxProtocols = pathWithAmountOut.protocols;
-      maxPools = pathWithAmountOut.pools;
-    }
-  });
-  return maxPath;
-}
-
 export const findOptimalPath = async (from: string, to: string, amountInRaw: number, pools: PoolDto[]): Promise<any> => {
   from = from.toLowerCase();
   to = to.toLowerCase();
@@ -83,7 +26,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   // const real_to = to;
 
   // ------------------------------------------------------------------
-  // 1) BNB 부속이면 BNB로, BUSD 부속이면 BUSD로 스왚
+  // 1) if from is BNB_ATTACHED_TOKENS or BUSD_ATTACHED_TOKENS, just swap to BNB or BUSD.
   // ------------------------------------------------------------------
 
   if (BNB_ATTACHED_TOKENS.includes(from)) {
@@ -103,7 +46,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   }
 
   // ------------------------------------------------------------------
-  // 2) 만약 BNB 부속이나 BUSD 부속 토큰 내부의 스왚이라면, 그대로 스왚해주고 종료
+  // 2) if from and to is both BNB_ATTACHED_TOKENS, just swap and all done. Same with BUSD_ATTACHED_TOKENS
   // ------------------------------------------------------------------
   if (
     (from === BNB && BNB_ATTACHED_TOKENS.includes(to)) ||
@@ -119,7 +62,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   }
 
   // ------------------------------------------------------------------
-  // 3) 중심 토큰들 7개 사이에서 최적 경로를 탐색
+  // 3) find optimal path in 7 central tokens
   // ------------------------------------------------------------------
 
   const real_to = to;
@@ -130,11 +73,10 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   }
 
 
-  // 재귀함수를 돌려서,
-  // (1)경로 상의 이전 토큰이 들어있고,
-  // (2)지금까지의 경로에 없었던 LP를 찾아서 교환하고 산출량을 저장.
-  // (3)to token에 도달하면 함수 종료.
-  // 이렇게 찾은 to token 산출량 중에서 가장 산출량이 큰 경로를 채택.
+  // recursive function:
+  // (1) find and exchange LP's that were not in the previous path and store output.
+  // (2) if we reach to 'to token;, return and exit function.
+  // (3) choose the maximum output path
 
   let pathsWithAmountOut: {path: string[], protocols: string[], pools: PoolDto[], amountOut: BigNumber}[] = [];
 
@@ -148,7 +90,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
     const candidatePools = findPoolsByOneTokenAndWhiteBlacklist(pools, nowFrom, CENTRAL_TOKENS, nowPath);
 
     candidatePools.forEach((pool) => {
-      // forEach 돌면서 같은 pathNow에 add되는 현상 피하기 위해 copy
+      // use slice function just for copy
       const nowPathForExtend = nowPath.slice();
       const nowPathProtocolsExtend = nowPathProtocols.slice()
       const nowPoolsExtend = nowPools.slice()
@@ -166,8 +108,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
       addPath(nowPathForExtend, nowPathProtocolsExtend, nowPoolsExtend, amountOut);
     })
   };
-  // central token의 경로만 maxPath에 기록하고, 전체경로는 나중에 concat해준다.
-  // const nowPath = [path[path.length - 1]];
+  // in this section, just for central tokens.
   addPath(path, protocols, pathPools, amountIn);
 
   let maxPath: string[] = [];
@@ -187,7 +128,7 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
   path = path.concat(maxPath);
 
   // ------------------------------------------------------------------
-  // 4) 최종 path 반환
+  // 4) return final path
   // ------------------------------------------------------------------
   if (!CENTRAL_TOKENS.includes(real_to)) {
     console.log('to: ', to);
@@ -199,7 +140,6 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
     maxPools.push(pool);
   }
 
-  // console.log(pathsWithAmountOut);
 
   return {
     path: maxPath,
@@ -213,34 +153,3 @@ export const findOptimalPath = async (from: string, to: string, amountInRaw: num
     }),
   };
 };
-
-const main = async () => {
-  let startTime, middleTime, endTime;
-  startTime = new Date();
-  const pools = await fetchNowPools();
-  // console.log(pools);
-
-  middleTime = new Date();
-  console.log(middleTime - startTime);
-
-  // const result = await findOptimalPath(
-  //     '0xd41fdb03ba84762dd66a0af1a6c8540ff1ba5dfb',
-  //     '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-  //     10,
-  //     pools
-  // )
-  // console.log(result);
-
-  const result = await findOptimalPathWithinCentralTokens(
-    '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82',
-    '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
-    BigNumber(10),
-    pools
-  )
-  console.log(result);
-
-  endTime = new Date();
-  console.log(endTime - startTime);
-};
-
-main();

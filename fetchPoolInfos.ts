@@ -13,10 +13,10 @@ export const organizePoolInfo = (pools, protocol) => {
                 token0Symbol : pool["token0Symbol"],
                 token1Symbol : pool["token1Symbol"],
                 token0Reserve : BigNumber(String(pool["token0Reserve"]))
-                                .div(new BigNumber(10).exponentiatedBy(pool["token0Decimals"]))
+                                // .div(new BigNumber(10).exponentiatedBy(pool["token0Decimals"]))
                                 ,
                 token1Reserve : BigNumber(String(pool["token1Reserve"]))
-                                .div(new BigNumber(10).exponentiatedBy(pool["token1Decimals"]))
+                                // .div(new BigNumber(10).exponentiatedBy(pool["token1Decimals"]))
                                 ,
                 token0Decimals : pool["token0Decimals"],
                 token1Decimals : pool["token1Decimals"],
@@ -32,7 +32,6 @@ export const fetchNowPools = async (): Promise<PoolDto[]> => {
         viewerContract.poolInfos(pancakeFactory, 0, pancakePoolCount),
         viewerContract.poolInfos(bakeryFactory, 0, bakeryPoolCount),
     ]);
-    // console.log(multiProtocolPoolsInfo[0][0]);
     const pancakePoolInfos1 = organizePoolInfo(multiProtocolPoolsInfo[0][0], PANCAKE_SWAP_ADDRESS);
     const bakeryPoolInfos = organizePoolInfo(multiProtocolPoolsInfo[1][0], BAKERY_SWAP_ADDRESS);
 
@@ -40,8 +39,3 @@ export const fetchNowPools = async (): Promise<PoolDto[]> => {
         .concat(bakeryPoolInfos);
 };
 
-// const main = async () => {
-//     const pools = await fetchNowPools();
-//     // console.log(pools.length);
-// };
-// main();
