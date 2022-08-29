@@ -43,7 +43,7 @@ ts-node main.ts
 ```
 
 
-## DEX 추가 방법
+## How to add another DEX
 * If DEX has the same interface as the factory of the pancakeSwap, then you can add the router and factory address, swap fee ratio, and the properly large pool count that does not cause errors when requested on the RPC node to the static.ts. The information in the DEX is then reflected and the optimal path is explored.
 
 ```
