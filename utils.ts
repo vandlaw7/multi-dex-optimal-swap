@@ -54,3 +54,7 @@ export const findPoolsByOneTokenAndWhiteBlacklist =
     )
   )
 }
+
+export const findPoolsByToken = (pools: PoolDto[], token: string) => {
+  return pools.filter(pool => pool['token0'] === token || pool['token1'] === token)
+}
